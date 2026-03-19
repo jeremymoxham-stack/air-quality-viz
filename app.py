@@ -1,29 +1,38 @@
 import streamlit as st
 import pandas as pd
-import requests
+import numpy as np
+import plotly.express as px
 
-st.title("🌍 Global Breath Project: Phase 1")
-st.subheader("Testing Air Quality Data Connection")
+st.set_page_config(page_title="Global Breath Project", layout="wide")
 
-# A small list of cities to test the connection
-city = st.selectbox("Select a city to test:", ["Shanghai", "London", "New York", "Delhi"])
+st.title("🌍 Global Breath Project: 10-Year Air Quality Trends")
+st.write("Visualizing PM2.5 and PM10 levels from 2016 to 2026.")
 
-# OpenAQ API Call (Fetching the most recent PM2.5 measurement)
-url = f"https://api.openaq.org/v2/latest?city={city}&parameter=pm25"
+# Sidebar Selection
+city = st.sidebar.selectbox("Choose a City", ["Shanghai", "London", "New York", "Delhi", "Rome"])
+pollutant = st.sidebar.multiselect("Select Pollutants", ["PM2.5", "PM10"], default=["PM2.5"])
 
-if st.button('Fetch Latest Data'):
-    response = requests.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        if data['results']:
-            # Pulling out the measurement and date
-            measurements = data['results'][0]['measurements']
-            df = pd.DataFrame(measurements)
-            st.success(f"Successfully fetched data for {city}!")
-            st.write(df)
-        else:
-            st.warning("No recent data found for this city.")
-    else:
-        st.error("Failed to connect to the OpenAQ database.")
+# Generating 10 Years of Historical Data (Phase 2 Simulation)
+# This mimics the data we will pull from the API in Phase 3
+dates = pd.date_range(start="2016-01-01", end="2026-03-19", freq="M")
+data = pd.DataFrame({"Date": dates})
 
-st.info("Next Step: We will add the 10-year historical graph logic!")
+for p in pollutant:
+    # Logic: Generally, air quality has been slowly improving in many cities
+    base = 50 if p == "PM2.5" else 80
+    trend = np.linspace(base, base * 0.6, len(dates)) # Improving trend
+    noise = np.random.normal(0, 5, len(dates)) # Monthly fluctuations
+    data[p] = trend + noise
+
+# Create the Graph
+fig = px.line(data, x="Date", y=pollutant, 
+              title=f"Air Quality Trend in {city}",
+              labels={"value": "Concentration (µg/m³)", "variable": "Pollutant"},
+              template="plotly_dark")
+
+# Add WHO Guideline Line (24-hour mean for PM2.5 is 15)
+fig.add_hline(y=15, line_dash="dash", line_color="red", annotation_text="WHO Safety Limit")
+
+st.plotly_chart(fig, use_container_width=True)
+
+st.success(f"Graph loaded for {city}. Students can hover over the lines to see specific monthly data.")
